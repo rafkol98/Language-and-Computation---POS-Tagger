@@ -40,7 +40,7 @@ ti = tags2int.get("ADJ")
 print(ti)
 
 # Illustration how to access the word and the part-of-speech of tokens.
-def create_emmission_table(sents):
+def create_transition_table(sents):
 	tags2int = {
 		"<s>": 1, "ADJ": 2,"ADP": 3, "ADV": 4,"AUX": 5,"CCONJ": 6,"DET": 7,
 		"INTJ": 8,"NOUN": 9,"NUM": 10,"PART": 11,"PRON": 12,"PROPN": 13,
@@ -70,7 +70,7 @@ def getPosTagsOfSentence(sent):
 	tags.append("/<s>") # end-of-sentence marker.
 	return tags
 
-twod_tokens = create_emmission_table(train_sents)
+twod_tokens = create_transition_table(train_sents)
 
 
 
