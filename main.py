@@ -53,6 +53,12 @@ def getTags(sents):
         for token in sent:
             tags.append(token['upos']);
 
+    # Append starting and end tags.
+    tags.append("<s>")
+    tags.append("</s>")
+
+    print("inside getTags")
+    print(set(tags))
     return set(tags)
 
 def getPosTagsOfSentence(sent):
@@ -62,7 +68,7 @@ def getPosTagsOfSentence(sent):
     for i in range(len(sent)):
         tags.append(sent[i]['upos'])
 
-    tags.append("/<s>")  # end-of-sentence marker.
+    tags.append("</s>")  # end-of-sentence marker.
     return tags
 
 
@@ -74,7 +80,7 @@ def create_transition_table(sents):
 
     for sent in sents:
         pos_sent = getPosTagsOfSentence(sent)
-
+        print(pos_sent)
         for i in range(len(pos_sent) - 1):
             ti = tags2int.get(pos_sent[i], 0)
             ti1 = tags2int.get(pos_sent[i + 1], 0)
@@ -86,13 +92,15 @@ def create_transition_table(sents):
 
     smoothed_transition = {}
     for tag in tags:
+        # print(tag)
         taged_tag = [t for (pt, t) in transition if pt == tag]
+        # print(taged_tag)
         smoothed_transition[tag] = WittenBellProbDist(FreqDist(taged_tag), bins=1e5)
 
-    return c_table, smoothed_transition
+    return smoothed_transition
 
 
-def create_emmisions_dict(sents):
+def create_emissions_dict(sents):
     emissions = []
     for sent in sents:
         for token in sent:
@@ -111,13 +119,13 @@ def create_emmisions_dict(sents):
 
 # print(smoothed['AUX'].prob('is')) # example of how to get the probability --> pass in word.
 
-emmisions = create_emmisions_dict(test_sents)
+# emissions = create_emissions_dict(test_sents)
+# print(emissions)
+# print("Dame")
+# print(emissions.get("PRON").prob("What"))
 
-print("Dame")
-print(emmisions.get("PRON").prob("What"))
-# print(emmisions[0].prob("What"))
-
-# transitions = create_transition_table(test_sents)
-# print(transitions)
-# print(transitions.get("<s>").prob('PROPN'))
+print("ALO")
+transitions = create_transition_table(test_sents)
+print(transitions)
+print(transitions.get('<s>').prob('PRON'))
 
