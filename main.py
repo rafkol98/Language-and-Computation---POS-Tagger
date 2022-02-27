@@ -37,16 +37,9 @@ test_sents = conllu_corpus(test_corpus(lang))
 print(len(train_sents), 'training sentences')
 print(len(test_sents), 'test sentences')
 
-tags2int = {
-    "<s>": 1, "ADJ": 2, "ADP": 3, "ADV": 4, "AUX": 5, "CCONJ": 6, "DET": 7,
-    "INTJ": 8, "NOUN": 9, "NUM": 10, "PART": 11, "PRON": 12, "PROPN": 13,
-    "PUNCT": 14, "SCONJ": 15, "SYM": 16, "VERB": 17, "X": 18, "</s>": 19
-}
 
-ti = tags2int.get("ADJ")
-print(ti)
-
-def getTags(sents):
+# Return the tags that are present in all the sentences passed in.
+def get_tags(sents):
     tags = []
     for sent in sents:
         # tags.append(Start)
@@ -57,11 +50,11 @@ def getTags(sents):
     tags.append("<s>")
     tags.append("</s>")
 
-    print("inside getTags")
-    print(set(tags))
     return set(tags)
 
-def getPosTagsOfSentence(sent):
+
+# Get POS tags of a specific sentence passed in.
+def get_pos_tags_sentence(sent):
     tags = ["<s>"]  # start-of-sentence marker.
 
     # enter all the pos tags of all the words.
@@ -73,22 +66,13 @@ def getPosTagsOfSentence(sent):
 
 
 def create_transition_table(sents):
-    # Create a 19 x 19 table.
-    c_table = np.zeros((len(tags2int), len(tags2int)))
     transition = []
-    tags = getTags(sents) # get tags.
+    tags = get_tags(sents)  # get tags.
 
     for sent in sents:
-        pos_sent = getPosTagsOfSentence(sent)
-        print(pos_sent)
+        pos_sent = get_pos_tags_sentence(sent)
         for i in range(len(pos_sent) - 1):
-            ti = tags2int.get(pos_sent[i], 0)
-            ti1 = tags2int.get(pos_sent[i + 1], 0)
-
             transition.append((pos_sent[i], pos_sent[i + 1]))
-            c_table[ti - 1][ti1 - 1] += 1  # increment by 1.
-
-    c_table[tags2int["</s>"] - 1][tags2int["<s>"] - 1] = len(sents) - 1  # account for the transition from </s> to <s>
 
     smoothed_transition = {}
     for tag in tags:
@@ -117,15 +101,11 @@ def create_emissions_dict(sents):
 
     return smoothed
 
+
 # print(smoothed['AUX'].prob('is')) # example of how to get the probability --> pass in word.
 
-# emissions = create_emissions_dict(test_sents)
-# print(emissions)
-# print("Dame")
-# print(emissions.get("PRON").prob("What"))
+emissions = create_emissions_dict(test_sents)
+print(emissions.get("PRON").prob("What"))
 
-print("ALO")
 transitions = create_transition_table(test_sents)
-print(transitions)
 print(transitions.get('<s>').prob('PRON'))
-
