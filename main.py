@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from conllu import parse_incr
 from nltk import FreqDist, WittenBellProbDist, bigrams
+from numpy import argmax
 
 treebank = {}
 treebank['en'] = 'UD_English-EWT/en_ewt'
@@ -103,9 +104,23 @@ def create_emissions_dict(sents):
 
 
 # print(smoothed['AUX'].prob('is')) # example of how to get the probability --> pass in word.
+transitions = create_transition_table(test_sents)
+print(transitions.get('<s>').prob('PRON'))
 
 emissions = create_emissions_dict(test_sents)
 print(emissions.get("PRON").prob("What"))
 
-transitions = create_transition_table(test_sents)
-print(transitions.get('<s>').prob('PRON'))
+def choose_tags(sent):
+    pos_tags = ['<s>'] # insert the initial tag.
+    for i in range(1, len(sent)):
+        word = sent[i-1]
+        tag = pos_tags[i-1]
+        # argmax only for transitions
+        # Might be confusing that its i and not i-1.
+        t = transitions[argmax(transitions.get(tag))]
+        print("T")
+        print(t)
+        e = emissions.get(tag).prob(word)
+        print("E")
+        print(e)
+        pos_tags[i] = t # insert t as the tag for the next word.
