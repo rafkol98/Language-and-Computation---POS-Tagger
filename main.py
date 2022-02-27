@@ -2,7 +2,7 @@ from io import open
 import numpy as np
 import pandas as pd
 from conllu import parse_incr
-from nltk import FreqDist, WittenBellProbDist
+from nltk import FreqDist, WittenBellProbDist, bigrams
 
 treebank = {}
 treebank['en'] = 'UD_English-EWT/en_ewt'
@@ -53,7 +53,7 @@ def getTags(sents):
         for token in sent:
             tags.append(token['upos']);
 
-    return tags
+    return set(tags)
 
 def getPosTagsOfSentence(sent):
     tags = ["<s>"]  # start-of-sentence marker.
@@ -102,15 +102,22 @@ def create_emmisions_dict(sents):
     tags = set([t for (t, _) in emissions])
     for tag in tags:
         # print(smoothed)
+        print(tag)
         words = [w for (t, w) in emissions if t == tag]
         print(words)
         smoothed[tag] = WittenBellProbDist(FreqDist(words), bins=1e5)
 
+    return smoothed
 
 # print(smoothed['AUX'].prob('is')) # example of how to get the probability --> pass in word.
 
-# emmisions = create_emmisions_dict(test_sents)
-table, transitions = create_transition_table(test_sents)
-print(transitions)
-print(transitions.get("<s>").prob('PROPN'))
+emmisions = create_emmisions_dict(test_sents)
+
+print("Dame")
+print(emmisions.get("PRON").prob("What"))
+# print(emmisions[0].prob("What"))
+
+# transitions = create_transition_table(test_sents)
+# print(transitions)
+# print(transitions.get("<s>").prob('PROPN'))
 
