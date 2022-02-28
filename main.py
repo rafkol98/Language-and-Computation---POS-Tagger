@@ -4,6 +4,9 @@ import pandas as pd
 from conllu import parse_incr
 from nltk import FreqDist, WittenBellProbDist, bigrams
 from numpy import argmax
+# from sklearn.metrics import confusion_matrix
+# import matplotlib.pyplot as plt
+# import seaborn as sns
 
 treebank = {}
 treebank['en'] = 'UD_English-EWT/en_ewt'
@@ -35,24 +38,29 @@ lang = 'en'
 
 train_sents = conllu_corpus(train_corpus(lang))
 test_sents = conllu_corpus(test_corpus(lang))
-print(len(train_sents), 'training sentences')
-print(len(test_sents), 'test sentences')
 
-
-# Return the tags that are present in all the sentences passed in.
-def get_tags(sents):
+# Return the tags and words that are present in all the sentences passed in.
+def get_tags(sents, transitions_bool):
     tags = []
     for sent in sents:
         # tags.append(Start)
         for token in sent:
-            tags.append(token['upos']);
+            tags.append(token['upos'])
 
-    # Append starting and end tags.
-    tags.append("<s>")
-    tags.append("</s>")
+    if transitions_bool:
+      # Append starting and end tags.
+      tags.append("<s>")
+      tags.append("</s>")
 
-    return set(tags)
+    return list(set(tags))
 
+def get_words(sents):
+    words = []
+    for sent in sents:
+        for token in sent:
+            words.append(token['form'])
+
+    return list(set(words))
 
 # Get POS tags of a specific sentence passed in.
 def get_pos_tags_sentence(sent):
@@ -65,27 +73,7 @@ def get_pos_tags_sentence(sent):
     tags.append("</s>")  # end-of-sentence marker.
     return tags
 
-
-def create_transition_table(sents):
-    transition = []
-    tags = get_tags(sents)  # get tags.
-
-    for sent in sents:
-        pos_sent = get_pos_tags_sentence(sent)
-        for i in range(len(pos_sent) - 1):
-            transition.append((pos_sent[i], pos_sent[i + 1]))
-
-    smoothed_transition = {}
-    for tag in tags:
-        # print(tag)
-        taged_tag = [t for (pt, t) in transition if pt == tag]
-        # print(taged_tag)
-        smoothed_transition[tag] = WittenBellProbDist(FreqDist(taged_tag), bins=1e5)
-
-    return smoothed_transition
-
-
-def create_emissions_dict(sents):
+def get_emissions_dict(sents):
     emissions = []
     for sent in sents:
         for token in sent:
@@ -94,33 +82,146 @@ def create_emissions_dict(sents):
     smoothed = {}
     tags = set([t for (t, _) in emissions])
     for tag in tags:
-        # print(smoothed)
-        print(tag)
         words = [w for (t, w) in emissions if t == tag]
-        print(words)
         smoothed[tag] = WittenBellProbDist(FreqDist(words), bins=1e5)
 
     return smoothed
 
 
-# print(smoothed['AUX'].prob('is')) # example of how to get the probability --> pass in word.
-transitions = create_transition_table(test_sents)
-print(transitions.get('<s>').prob('PRON'))
+def create_transition_table(sents):
+    transition = []
+    tags = get_tags(sents, True)  # get tags.
 
-emissions = create_emissions_dict(test_sents)
-print(emissions.get("PRON").prob("What"))
+    for sent in sents:
+        pos_sent = get_pos_tags_sentence(sent)
+        for i in range(len(pos_sent) - 1):
+            transition.append((pos_sent[i], pos_sent[i + 1]))
 
-def choose_tags(sent):
-    pos_tags = ['<s>'] # insert the initial tag.
-    for i in range(1, len(sent)):
-        word = sent[i-1]
-        tag = pos_tags[i-1]
-        # argmax only for transitions
-        # Might be confusing that its i and not i-1.
-        t = transitions[argmax(transitions.get(tag))]
-        print("T")
-        print(t)
-        e = emissions.get(tag).prob(word)
-        print("E")
-        print(e)
-        pos_tags[i] = t # insert t as the tag for the next word.
+    smoothed = {}
+    for tag in tags:
+        # print(tag)
+        taged_tag = [t for (pt, t) in transition if pt == tag]
+        # print(taged_tag)
+        smoothed[tag] = WittenBellProbDist(FreqDist(taged_tag), bins=1e5)
+
+    # Initialise a transition table with zeros.
+    transitions_table = np.zeros((len(tags), len(tags)))
+
+    for t in range(len(tags)):
+        for ti in range(len(tags)):
+            tag = tags[t]
+            second_tag = tags[ti]
+
+            transitions_table[t][ti] = smoothed.get(tag).prob(second_tag)
+
+    # It does not matter that </s> is not at the end.
+    transitions_df = pd.DataFrame(data=transitions_table, columns=tags, index=tags)
+
+    return transitions_df
+
+
+def create_emmissions_hashmap(sents):
+    emissions = []
+    for sent in sents:
+        for token in sent:
+            emissions.append((token['upos'], token['form']))
+
+    smoothed = {}
+    tags = set([t for (t, _) in emissions])
+    for tag in tags:
+        words = [w for (t, w) in emissions if t == tag]
+        smoothed[tag] = WittenBellProbDist(FreqDist(words), bins=1e5)
+
+    # Get tags.
+    tags = get_tags(sents, False)
+
+    words = get_words(sents)
+
+    emissions_hash = {}
+    for tag in tags:
+        emissions_hash[tag] = {}
+        for word in words:
+            emissions_hash[tag][word] = smoothed.get(tag).prob(word)
+
+    return emissions_hash
+
+
+def eager(tagset, word, previous_tag):
+    pos_probs = {}
+
+    for tag in tagset:
+        if tag == '<s>' or tag == '</s>':
+            continue
+
+        if word not in emissions:
+            pos_probs[tag] = transitions[tag][previous_tag]
+        else:
+            pos_probs[tag] = transitions[tag][previous_tag] * emissions[tag][word]
+
+    return max(pos_probs, key=pos_probs.get)
+
+def predict_pos(sents):
+  tags = get_tags(sents, True)
+
+  all_sentences_preds = []
+  all_sentences_actual = []
+
+  for sent in sents:
+    preds_current_sent = []
+    actual_current_sent = []
+
+    previous_tag = '<s>' # set initial tag.
+    for word in sent:
+      # Predict tag.
+      predicted_tag = eager(tags, word['form'], previous_tag)
+      # Add predicted and actual tag to their respective lists.
+      preds_current_sent.append(predicted_tag)
+      actual_current_sent.append(word['upos'])
+      # Assign the predicted_tag to the previous_tag.
+      previous_tag = predicted_tag
+
+    all_sentences_preds.append(preds_current_sent)
+    all_sentences_actual.append(actual_current_sent)
+  return all_sentences_preds, all_sentences_actual
+
+def calculate_accuracy(preds, actual):
+  all_predictions, all_actuals = [], []
+
+  total_count = 0
+  correct_count = 0
+
+  for i in range(len(preds)):
+    # ASSUMPTION THAT PREDS AND ACTUAL SENTENCES HAVE OF COURSE THE
+    # SAME LENGTH/SIZE.
+    sentence = preds[i]
+    for x in range(len(sentence)):
+      total_count += 1
+      all_predictions.append(preds[i][x])
+      all_actuals.append(actual[i][x])
+
+      if (preds[i][x] == actual[i][x]):
+        correct_count += 1
+
+
+  print(f"accuracy: {correct_count/total_count}")
+  return all_predictions, all_actuals
+
+# CONFUSION MATRIX USED FOR THE REPORT.
+# def plot_conf_mx(y_actual, y_preds):
+#     plt.figure(figsize = (12,12))
+#
+#     conf_mx = confusion_matrix(y_actual, y_preds)
+#
+#     hm = sns.heatmap(conf_mx, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={'size': 10})
+#     plt.show()
+
+# TRAINING
+transitions = create_transition_table(train_sents)
+emissions = create_emmissions_hashmap(train_sents)
+
+predictions, actuals = predict_pos(test_sents)
+all_preds, all_actuals = calculate_accuracy(predictions, actuals)
+# plot_conf_mx(all_preds, all_actuals) CONFUSION MATRIX USED FOR THE REPORT.
+
+
+
