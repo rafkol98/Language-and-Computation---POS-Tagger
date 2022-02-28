@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from conllu import parse_incr
 from nltk import FreqDist, WittenBellProbDist, bigrams
-from numpy import argmax
+
 # from sklearn.metrics import confusion_matrix
 # import matplotlib.pyplot as plt
 # import seaborn as sns
@@ -73,21 +73,6 @@ def get_pos_tags_sentence(sent):
     tags.append("</s>")  # end-of-sentence marker.
     return tags
 
-def get_emissions_dict(sents):
-    emissions = []
-    for sent in sents:
-        for token in sent:
-            emissions.append((token['upos'], token['form']))
-
-    smoothed = {}
-    tags = set([t for (t, _) in emissions])
-    for tag in tags:
-        words = [w for (t, w) in emissions if t == tag]
-        smoothed[tag] = WittenBellProbDist(FreqDist(words), bins=1e5)
-
-    return smoothed
-
-
 def create_transition_table(sents):
     transition = []
     tags = get_tags(sents, True)  # get tags.
@@ -119,7 +104,6 @@ def create_transition_table(sents):
 
     return transitions_df
 
-
 def create_emmissions_hashmap(sents):
     emissions = []
     for sent in sents:
@@ -145,68 +129,7 @@ def create_emmissions_hashmap(sents):
 
     return emissions_hash
 
-
-def eager(tagset, word, previous_tag):
-    pos_probs = {}
-
-    for tag in tagset:
-        if tag == '<s>' or tag == '</s>':
-            continue
-
-        if word not in emissions:
-            pos_probs[tag] = transitions[tag][previous_tag]
-        else:
-            pos_probs[tag] = transitions[tag][previous_tag] * emissions[tag][word]
-
-    return max(pos_probs, key=pos_probs.get)
-
-def predict_pos(sents):
-  tags = get_tags(sents, True)
-
-  all_sentences_preds = []
-  all_sentences_actual = []
-
-  for sent in sents:
-    preds_current_sent = []
-    actual_current_sent = []
-
-    previous_tag = '<s>' # set initial tag.
-    for word in sent:
-      # Predict tag.
-      predicted_tag = eager(tags, word['form'], previous_tag)
-      # Add predicted and actual tag to their respective lists.
-      preds_current_sent.append(predicted_tag)
-      actual_current_sent.append(word['upos'])
-      # Assign the predicted_tag to the previous_tag.
-      previous_tag = predicted_tag
-
-    all_sentences_preds.append(preds_current_sent)
-    all_sentences_actual.append(actual_current_sent)
-  return all_sentences_preds, all_sentences_actual
-
-def calculate_accuracy(preds, actual):
-  all_predictions, all_actuals = [], []
-
-  total_count = 0
-  correct_count = 0
-
-  for i in range(len(preds)):
-    # ASSUMPTION THAT PREDS AND ACTUAL SENTENCES HAVE OF COURSE THE
-    # SAME LENGTH/SIZE.
-    sentence = preds[i]
-    for x in range(len(sentence)):
-      total_count += 1
-      all_predictions.append(preds[i][x])
-      all_actuals.append(actual[i][x])
-
-      if (preds[i][x] == actual[i][x]):
-        correct_count += 1
-
-
-  print(f"accuracy: {correct_count/total_count}")
-  return all_predictions, all_actuals
-
-# CONFUSION MATRIX USED FOR THE REPORT.
+# # CONFUSION MATRIX USED FOR THE REPORT.
 # def plot_conf_mx(y_actual, y_preds):
 #     plt.figure(figsize = (12,12))
 #
@@ -214,14 +137,4 @@ def calculate_accuracy(preds, actual):
 #
 #     hm = sns.heatmap(conf_mx, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={'size': 10})
 #     plt.show()
-
-# TRAINING
-transitions = create_transition_table(train_sents)
-emissions = create_emmissions_hashmap(train_sents)
-
-predictions, actuals = predict_pos(test_sents)
-all_preds, all_actuals = calculate_accuracy(predictions, actuals)
-# plot_conf_mx(all_preds, all_actuals) CONFUSION MATRIX USED FOR THE REPORT.
-
-
 
