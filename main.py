@@ -2,13 +2,15 @@ from io import open
 from conllu import parse_incr
 from nltk import FreqDist, WittenBellProbDist, bigrams
 from random import sample
+import sys
+
+from Eager import eager
+from ForwardBackward import forward_backward
+from Viterbi import viterbi
 
 # from sklearn.metrics import confusion_matrix
 # import matplotlib.pyplot as plt
 # import seaborn as sns
-from Eager import eager
-from ForwardBackward import forward_backward
-from Viterbi import viterbi
 
 treebank = {}
 treebank['en'] = 'UD_English-EWT/en_ewt'
@@ -45,24 +47,25 @@ def get_tags(sents, transitions_bool):
 
     # if its called from the transitions table, then append starting and end tags.
     if transitions_bool:
-      tags.append("<s>")
-      tags.append("</s>")
+        tags.append("<s>")
+        tags.append("</s>")
 
     return list(set(tags))
 
+
 # Get POS tags of a specific sentence passed in.
-def get_pos_tags_sentence(sent, include_start_end = False):
+def get_pos_tags_sentence(sent, include_start_end=False):
     tags = []
 
     if include_start_end:
-      tags.append("<s>")  # start-of-sentence marker.
+        tags.append("<s>")  # start-of-sentence marker.
 
     # enter all the pos tags of all the words.
     for i in range(len(sent)):
         tags.append(sent[i]['upos'])
 
     if include_start_end:
-      tags.append("</s>")  # end-of-sentence marker.
+        tags.append("</s>")  # end-of-sentence marker.
 
     return tags
 
@@ -81,44 +84,45 @@ def get_emissions_dict(sents):
 
     return smoothed
 
+
 def create_transition_table(sents):
-  transition = []
-  tags = get_tags(sents, True) # get tags.
+    transition = []
+    tags = get_tags(sents, True)  # get tags.
 
-  for sent in sents:
-      pos_sent = get_pos_tags_sentence(sent, True)
-      for i in range(len(pos_sent) - 1):
-          transition.append((pos_sent[i], pos_sent[i + 1]))
+    for sent in sents:
+        pos_sent = get_pos_tags_sentence(sent, True)
+        for i in range(len(pos_sent) - 1):
+            transition.append((pos_sent[i], pos_sent[i + 1]))
 
-  smoothed = {}
-  for tag in tags:
-      taged_tag = [t for (pt, t) in transition if pt == tag]
-      smoothed[tag] = WittenBellProbDist(FreqDist(taged_tag), bins=1e5)
+    smoothed = {}
+    for tag in tags:
+        taged_tag = [t for (pt, t) in transition if pt == tag]
+        smoothed[tag] = WittenBellProbDist(FreqDist(taged_tag), bins=1e5)
 
-  # return transitions_smoothed out.
-  return smoothed
+    # return transitions_smoothed out.
+    return smoothed
+
 
 def calculate_accuracy(preds, actual, tags):
-  all_predictions, all_actuals = [], []
+    all_predictions, all_actuals = [], []
 
-  total_count = 0
-  correct_count = 0
+    total_count = 0
+    correct_count = 0
 
-  for i in range(len(preds)):
-    # ASSUMPTION THAT PREDS AND ACTUAL SENTENCES HAVE OF COURSE THE
-    # SAME LENGTH/SIZE.
-    sentence = preds[i]
-    for x in range(len(sentence)):
-      total_count += 1
-      all_predictions.append(preds[i][x])
-      all_actuals.append(actual[i][x])
+    for i in range(len(preds)):
+        # ASSUMPTION THAT PREDS AND ACTUAL SENTENCES HAVE OF COURSE THE
+        # SAME LENGTH/SIZE.
+        sentence = preds[i]
+        for x in range(len(sentence)):
+            total_count += 1
+            all_predictions.append(preds[i][x])
+            all_actuals.append(actual[i][x])
 
-      if (preds[i][x] == actual[i][x]):
-        correct_count += 1
+            if (preds[i][x] == actual[i][x]):
+                correct_count += 1
 
-
-  print(f"accuracy: {correct_count/total_count}")
-  # plot_conf_mx(all_predictions, all_actuals, tags) confusion matrix used for the report
+    print(f"accuracy: {correct_count / total_count}")
+    # plot_conf_mx(all_predictions, all_actuals, tags) confusion matrix used for the report
 
 
 # Plot confusion matrix - used for the report.
@@ -141,8 +145,10 @@ def evaluate_language(lang):
         train_sents = conllu_corpus(train_corpus(lang))
         test_sents = conllu_corpus(test_corpus(lang))
 
-        train_sents = sample(train_sents, 12264) # resample the train_sent to the length of the smallest corpus. This was found out by experimentation.
-        test_sents = sample(test_sents, 426) # resample the testing sent to the length of the smallest corpus. This was found out by experimentation.
+        train_sents = sample(train_sents,
+                             12264)  # resample the train_sent to the length of the smallest corpus. This was found out by experimentation.
+        test_sents = sample(test_sents,
+                            426)  # resample the testing sent to the length of the smallest corpus. This was found out by experimentation.
 
         transitions = create_transition_table(train_sents)  # Create transitions table using training sentences.
         emissions = get_emissions_dict(train_sents)  # Create emissions table using training sentences.
@@ -156,7 +162,6 @@ def evaluate_language(lang):
         print("Testing - Eager")
         preds_eager_test, actuals_eager_test = eager(test_sents, transitions, emissions, tags)
         calculate_accuracy(preds_eager_test, actuals_eager_test, tags)
-
 
         print("\nVITERBI")
         print("Training - Viterbi")
@@ -177,7 +182,11 @@ def evaluate_language(lang):
         calculate_accuracy(preds_local_test, actuals_local_test, tags)
 
 
-
-
-evaluate_language('en')
-
+# Check if the user provided arguments. First argument is the filename.
+if len(sys.argv) == 2:
+    lang = sys.argv[1]
+    # check if its one of the languages in our corpora.
+    if (lang in ('en', 'es', 'nl', 'pl')):
+        evaluate_language(lang)
+else:
+    print("Please run like this: python main.py <'en'|'<es>'|'<nl>'|'<pl>' \nPlease also look at the ReadMe file for further instructions.\n")
