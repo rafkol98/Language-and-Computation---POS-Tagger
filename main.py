@@ -12,10 +12,26 @@ from Viterbi import viterbi
 # import matplotlib.pyplot as plt
 # import seaborn as sns
 
+# Plot confusion matrix - used for the report. Please IGNORE. I DID NOT INCLUDE THE SNS AND MATPLOTLIB PACKAGES
+# IN THE VIRTUAL ENVIRONMENT SUBMITTED.
+# def plot_conf_mx(y_preds, y_actual, tags):
+#
+#     # tags = get_tags(test_sents, False) # Get tags, to be used for the confusion matrix.
+#
+#     plt.figure(figsize = (20,16))
+#
+#     conf_mx = confusion_matrix(y_actual, y_preds)
+#
+#     hm = sns.heatmap(conf_mx, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={'size': 10}, cmap="Greens", xticklabels=sorted(tags), yticklabels=sorted(tags))
+#     plt.show()
+
+# Initialise treebanks available.
 treebank = {}
 treebank['en'] = 'UD_English-EWT/en_ewt'
 treebank['es'] = 'UD_Spanish-GSD/es_gsd'
 treebank['nl'] = 'UD_Dutch-Alpino/nl_alpino'
+treebank['pl'] = 'UD_Polish-PDB/pl_pdb'
+treebank['pr'] = 'UD_Persian-PerDT/fa_perdt'
 
 
 def train_corpus(lang):
@@ -79,7 +95,6 @@ def get_emissions_dict(sents):
 
     smoothed = {}
     tags = set([t for (t, _) in emissions])
-
     # Iterate through the tags and use WittenBellProbDist to smooth them.
     for tag in tags:
         words = [w for (t, w) in emissions if t == tag]
@@ -99,6 +114,7 @@ def create_transition(sents):
             transition.append((pos_sent[i], pos_sent[i + 1]))
 
     smoothed = {}
+    # Iterate through the tags and use WittenBellProbDist to smooth them.
     for tag in tags:
         taged_tag = [t for (pt, t) in transition if pt == tag]
         smoothed[tag] = WittenBellProbDist(FreqDist(taged_tag), bins=1e5)
@@ -127,24 +143,13 @@ def calculate_accuracy(preds, actual, tags):
                 correct_count += 1
 
     print(f"accuracy: {correct_count / total_count}")
-    # plot_conf_mx(all_predictions, all_actuals, tags) confusion matrix used for the report
+    # plot_conf_mx(all_predictions, all_actuals, tags) # confusion matrix used for the report. PLEASE IGNORE.
 
 
-# Plot confusion matrix - used for the report.
-# def plot_conf_mx(y_preds, y_actual, tags):
-#
-#     # tags = get_tags(test_sents, False) # Get tags, to be used for the confusion matrix.
-#
-#     plt.figure(figsize = (20,16))
-#
-#     conf_mx = confusion_matrix(y_actual, y_preds)
-#
-#     hm = sns.heatmap(conf_mx, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={'size': 10}, cmap="Greens", xticklabels=sorted(tags), yticklabels=sorted(tags))
-#     plt.show()
-
-def evaluate_language(lang):
+def evaluate_language(lang, algorithm):
     '''Evaluate a passed in language running all three algorithms.'''
 
+    print(f"mesa{algorithm}")
     # Check that the language passed in is one of the ones we contain their corpus.
     if lang in ('en', 'es', 'nl', 'pl'):
         train_sents = conllu_corpus(train_corpus(lang))
@@ -159,41 +164,52 @@ def evaluate_language(lang):
         emissions = get_emissions_dict(train_sents)  # Create emissions table using training sentences.
         tags = get_tags(test_sents, False)  # Get tags in the tagset of the language.
 
-        print("\nEAGER")
-        print("Training - Eager")
-        preds_eager_train, actuals_eager_train = eager(train_sents, transitions, emissions, tags)
-        calculate_accuracy(preds_eager_train, actuals_eager_train, tags)
+        # if number passed in is 1 or 4 (all), then run eager algorithm.
+        if algorithm in (1, 4):
+            print("\nEAGER")
+            print("Training - Eager")
+            preds_eager_train, actuals_eager_train = eager(train_sents, transitions, emissions, tags)
+            calculate_accuracy(preds_eager_train, actuals_eager_train, tags)
 
-        print("Testing - Eager")
-        preds_eager_test, actuals_eager_test = eager(test_sents, transitions, emissions, tags)
-        calculate_accuracy(preds_eager_test, actuals_eager_test, tags)
+            print("Testing - Eager")
+            preds_eager_test, actuals_eager_test = eager(test_sents, transitions, emissions, tags)
+            calculate_accuracy(preds_eager_test, actuals_eager_test, tags)
 
-        print("\nVITERBI")
-        print("Training - Viterbi")
-        preds_viterbi_train, actuals_viterbi_train = viterbi(train_sents, transitions, emissions, tags)
-        calculate_accuracy(preds_viterbi_train, actuals_viterbi_train, tags)
+        # if number passed in is 2 or 4 (all), then run viterbi algorithm.
+        if algorithm in (2, 4):
+            print("\nVITERBI")
+            print("Training - Viterbi")
+            preds_viterbi_train, actuals_viterbi_train = viterbi(train_sents, transitions, emissions, tags)
+            calculate_accuracy(preds_viterbi_train, actuals_viterbi_train, tags)
 
-        print("Testing - Viterbi")
-        preds_viterbi_test, actuals_viterbi_test = viterbi(test_sents, transitions, emissions, tags)
-        calculate_accuracy(preds_viterbi_test, actuals_viterbi_test, tags)
+            print("Testing - Viterbi")
+            preds_viterbi_test, actuals_viterbi_test = viterbi(test_sents, transitions, emissions, tags)
+            calculate_accuracy(preds_viterbi_test, actuals_viterbi_test, tags)
 
-        print("\nFORWARD-BACKWARD")
-        print("Training - Forward-Backward")
-        preds_local_train, actuals_local_train = forward_backward(train_sents, transitions, emissions, tags)
-        calculate_accuracy(preds_local_train, actuals_local_train, tags)
+        # if number passed in is 3 or 4 (all), then run forward-backwards algorithm.
+        if algorithm in (3, 4):
+            print("\nFORWARD-BACKWARD")
+            print("Training - Forward-Backward")
+            preds_local_train, actuals_local_train = forward_backward(train_sents, transitions, emissions, tags)
+            calculate_accuracy(preds_local_train, actuals_local_train, tags)
 
-        print("Testing - Forward-Backward")
-        preds_local_test, actuals_local_test = forward_backward(test_sents, transitions, emissions, tags)
-        calculate_accuracy(preds_local_test, actuals_local_test, tags)
+            print("Testing - Forward-Backward")
+            preds_local_test, actuals_local_test = forward_backward(test_sents, transitions, emissions, tags)
+            calculate_accuracy(preds_local_test, actuals_local_test, tags)
 
 
-# RUNNING THE PROGRAM.
+# RUNNING THE PROGRAM - FROM TERMINAL.
 # Check if the user provided arguments. First argument is the filename.
-if len(sys.argv) == 2:
-    lang = sys.argv[1]
+if len(sys.argv) == 3:
+    lang = sys.argv[1] # argument used to select corpus to use.
+    algo = int(sys.argv[2]) #argument used to select the algorithm to run. 4 runs all of them.
+
     # check if its one of the languages in our corpora.
-    if (lang in ('en', 'es', 'nl', 'pl')):
-        evaluate_language(lang)
+    if ((lang in ('en', 'es', 'nl', 'pl','pr')) and (algo in (1, 2, 3, 4))):
+        evaluate_language(lang, algo)
+    else:
+        print(
+            "Supported languages are: 'en', 'es', 'nl', 'pl'. For algorithm parameter enter a number from 1 to 4.\nPlease also look at the ReadMe file for further instructions.\n")
 else:
     print(
-        "Please run like this: python main.py <'en'|'<es>'|'<nl>'|'<pl>' \nPlease also look at the ReadMe file for further instructions.\n")
+        "Please run as follows : python main.py <'en'|'<es>'|'<nl>'|'<pl> <1|2|3|4>' \nPlease also look at the ReadMe file for further instructions.\n")

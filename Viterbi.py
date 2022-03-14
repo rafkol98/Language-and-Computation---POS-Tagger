@@ -55,7 +55,7 @@ def viterbi(sents, transitions, emissions, tags):
                 # Initial step.
                 if w == 0:
                     viterbi_t[tag][word] = (
-                    exp(log(transitions['<s>'].prob(tag)) + log(emissions[tag].prob(word))), '<s>')
+                        exp(log(transitions['<s>'].prob(tag)) + log(emissions[tag].prob(word))), '<s>')
 
                 # If not the first word then find tag giving highest probability (max).
                 else:

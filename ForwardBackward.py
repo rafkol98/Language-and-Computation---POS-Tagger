@@ -6,15 +6,16 @@ from sys import float_info
 # This effectively acts as probability 0 in the form of log probability.
 min_log_prob = -float_info.max
 
+
 # Adding a list of probabilities represented as log probabilities.
 def logsumexp(vals):
-	if len(vals) == 0:
-		return min_log_prob
-	m = max(vals)
-	if m == min_log_prob:
-		return min_log_prob
-	else:
-		return m + log(sum([exp(val - m) for val in vals]))
+    if len(vals) == 0:
+        return min_log_prob
+    m = max(vals)
+    if m == min_log_prob:
+        return min_log_prob
+    else:
+        return m + log(sum([exp(val - m) for val in vals]))
 
 
 def forward(words, transitions, emissions, tags):
@@ -119,7 +120,7 @@ def forward_backward(sents, transitions, emissions, tags):
             for tag in tags:
                 trellis[tag] = (forward_table[tag][word] * backwards_table[tag][word])
 
-            max_tag = max(trellis, key=trellis.get) # The tag assigned is the maximum one in the trellis.
+            max_tag = max(trellis, key=trellis.get)  # The tag assigned is the maximum one in the trellis.
             pos_preds.append(max_tag)
 
         # Append the prediction and actuals to the corresponding arrays (used for evaluation).
