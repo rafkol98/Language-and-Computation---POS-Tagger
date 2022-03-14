@@ -18,8 +18,8 @@ def logsumexp(vals):
 
 
 def forward(words, transitions, emissions, tags):
+    '''The forward algorithm for the ForwardBackward algorithm.'''
     forward_t = create_table(words, False, tags)
-    previous_tag = '<s>'
 
     # Iterate through the words in the sentence.
     for w in range(len(words)):
@@ -55,13 +55,12 @@ def forward(words, transitions, emissions, tags):
         final.append(prob)
     final_value = exp(logsumexp(final))
 
-    # print(final_value)
     return forward_t, final_value
 
 
 def backwards(words, transitions, emissions, tags):
+    '''The backwards algorithm for the ForwardBackward algorithm.'''
     backwards_t = create_table(words, False, tags)
-    previous_tag = '<s>'
 
     # Iterate through the words in the sentence in reverse (using the indices).
     for w in range(len(words) - 1, -1, -1):
@@ -97,12 +96,12 @@ def backwards(words, transitions, emissions, tags):
         final.append(prob)
     final_value = exp(logsumexp(final))
 
-    # print(backwards_t)
-    # print(final_value)
     return backwards_t, final_value
 
 
 def forward_backward(sents, transitions, emissions, tags):
+    '''The ForwardBackward algorithm. Uses the forward and backwards tables to perform local decoding and
+    assign tags to each word in a sentence.'''
     all_sentences_preds = []
     all_sentences_actual = []
     # Iterate through the sentences.
@@ -113,17 +112,17 @@ def forward_backward(sents, transitions, emissions, tags):
         backwards_table, backwards_last = backwards(words, transitions, emissions, tags)
 
         pos_preds = []
-        # print(f"sanity check: {forward_last} , {backwards_last}")
+        # Iterate through the words in the sentence.
         for word in words:
             trellis = {}
-            #  multiply alpha and beta together and return the maxium entry.
+            #  multiply alpha and beta together and return the maximum entry.
             for tag in tags:
                 trellis[tag] = (forward_table[tag][word] * backwards_table[tag][word])
 
-            max_tag = max(trellis, key=trellis.get)
+            max_tag = max(trellis, key=trellis.get) # The tag assigned is the maximum one in the trellis.
             pos_preds.append(max_tag)
-            # print(max_tag)
 
+        # Append the prediction and actuals to the corresponding arrays (used for evaluation).
         all_sentences_preds.append(pos_preds)
         all_sentences_actual.append(get_actual_pos(sent))
 
