@@ -1,21 +1,26 @@
 from numpy import argmax
 from math import log, exp
 
+
 def create_table(words, viterbi, tags):
-  table = {}
-  for tag in tags:
-    table[tag] = {}
-    for word in words:
-      if viterbi:
-        table[tag][word] = (float(0),'')
-      else:
-        table[tag][word] = float(0)
-  return table
+    '''Create a dictionary, to be used as a two dimensional table.'''
+    table = {}
+    # iterate through the tags and words/
+    for tag in tags:
+        table[tag] = {}
+        for word in words:
+            # If the viterbi flag is true, then store them as tuples.
+            if viterbi:
+                table[tag][word] = (float(0), '')
+            else:
+                table[tag][word] = float(0)
+    return table
 
 
 def get_words_sentence(sent):
+    '''Get all the words in a passed in sentence'''
     words = []
-
+    # Iterate through the words in the sentence and.
     for i in range(len(sent)):
         words.append(sent[i]['form'])
 
@@ -23,18 +28,21 @@ def get_words_sentence(sent):
 
 
 def get_actual_pos(sentence):
+    '''Get the actual pos of a sentence (included in treebank)'''
     actual_pos = []
     for word in sentence:
         actual_pos.append(word['upos'])
 
     return actual_pos
 
+
 def viterbi(sents, transitions, emissions, tags):
+    '''Use viterbi function to predict pos tags for the passed in sentences.'''
     all_sentences_preds = []
     all_sentences_actual = []
 
     for sent in sents:
-        words = get_words_sentence(sent) # get all words in the sentence.
+        words = get_words_sentence(sent)  # get all words in the sentence.
         viterbi_t = create_table(words, True, tags)
 
         # Iterate through the words in the sentence.
@@ -46,7 +54,8 @@ def viterbi(sents, transitions, emissions, tags):
 
                 # Initial step.
                 if w == 0:
-                    viterbi_t[tag][word] = (exp(log(transitions['<s>'].prob(tag)) + log(emissions[tag].prob(word))), '<s>')
+                    viterbi_t[tag][word] = (
+                    exp(log(transitions['<s>'].prob(tag)) + log(emissions[tag].prob(word))), '<s>')
 
                 # If not the first word then find tag giving highest probability (max).
                 else:
@@ -56,10 +65,11 @@ def viterbi(sents, transitions, emissions, tags):
 
                     # Iterate through the previous tags to consider the step from ti-1 to t. Recursive step.
                     for tPre in tags:
-                        prob = exp(log(viterbi_t[tPre][words[w - 1]][0]) + log(transitions[tPre].prob(tag)) + log(emissions[tag].prob(word)))
+                        prob = exp(log(viterbi_t[tPre][words[w - 1]][0]) + log(transitions[tPre].prob(tag)) + log(
+                            emissions[tag].prob(word)))
                         # if prob is 0 then set it to the least possible exponention value (avoid math error).
                         if (prob == 0):
-                          prob = 5e-324
+                            prob = 5e-324
                         trellis.append(prob)
                         previous_tags.append(tPre)
 
@@ -81,14 +91,16 @@ def viterbi(sents, transitions, emissions, tags):
 
     return all_sentences_preds, all_sentences_actual
 
+
 def backtrack(viterbi_table, words, last_value):
-  predicted_pos = [] # store predicted pos.
-  prev_max_tag = last_value[1]
+    '''Backtrack the viterbi function to find sequence of tags.'''
+    predicted_pos = []  # store predicted pos.
+    prev_max_tag = last_value[1]
 
-  # Iterate through the words in reverse.
-  for w in reversed(words):
-    predicted_pos.append(prev_max_tag)
-    prev_max_tag = viterbi_table[prev_max_tag][w][1]
+    # Iterate through the words in reverse.
+    for w in reversed(words):
+        predicted_pos.append(prev_max_tag)
+        prev_max_tag = viterbi_table[prev_max_tag][w][1]
 
-  predicted_pos.reverse() # reverse list.
-  return predicted_pos
+    predicted_pos.reverse()  # reverse list.
+    return predicted_pos

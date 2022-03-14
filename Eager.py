@@ -1,4 +1,5 @@
 def eager(sents, transitions, emissions, tags):
+    '''Use the Eager algorithm to assign POS tags to words.'''
     # Store predictions and actuals.
     all_sentences_preds = []
     all_sentences_actual = []

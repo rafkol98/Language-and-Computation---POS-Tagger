@@ -53,8 +53,8 @@ def get_tags(sents, transitions_bool):
     return list(set(tags))
 
 
-# Get POS tags of a specific sentence passed in.
 def get_pos_tags_sentence(sent, include_start_end=False):
+    '''Get all the POS tags of a specific sentence passed in.'''
     tags = []
 
     if include_start_end:
@@ -71,6 +71,7 @@ def get_pos_tags_sentence(sent, include_start_end=False):
 
 
 def get_emissions_dict(sents):
+    '''Returns a dictionary with the smoothed out emissions.'''
     emissions = []
     for sent in sents:
         for token in sent:
@@ -78,6 +79,8 @@ def get_emissions_dict(sents):
 
     smoothed = {}
     tags = set([t for (t, _) in emissions])
+
+    # Iterate through the tags and use WittenBellProbDist to smooth them.
     for tag in tags:
         words = [w for (t, w) in emissions if t == tag]
         smoothed[tag] = WittenBellProbDist(FreqDist(words), bins=1e5)
@@ -85,7 +88,8 @@ def get_emissions_dict(sents):
     return smoothed
 
 
-def create_transition_table(sents):
+def create_transition(sents):
+    '''Returns a dictionary that holds the smoothed out transitions.'''
     transition = []
     tags = get_tags(sents, True)  # get tags.
 
@@ -104,6 +108,7 @@ def create_transition_table(sents):
 
 
 def calculate_accuracy(preds, actual, tags):
+    '''Calculate accuracy for passed in predictions and actuals'''
     all_predictions, all_actuals = [], []
 
     total_count = 0
@@ -145,12 +150,12 @@ def evaluate_language(lang):
         train_sents = conllu_corpus(train_corpus(lang))
         test_sents = conllu_corpus(test_corpus(lang))
 
-        train_sents = sample(train_sents,
-                             12264)  # resample the train_sent to the length of the smallest corpus. This was found out by experimentation.
-        test_sents = sample(test_sents,
-                            426)  # resample the testing sent to the length of the smallest corpus. This was found out by experimentation.
+        # resample the train_sent to the length of the smallest corpus. This was found out by experimentation.
+        train_sents = sample(train_sents, 12264)
+        # resample the testing sent to the length of the smallest corpus. This was found out by experimentation.
+        test_sents = sample(test_sents, 426)
 
-        transitions = create_transition_table(train_sents)  # Create transitions table using training sentences.
+        transitions = create_transition(train_sents)  # Create transitions table using training sentences.
         emissions = get_emissions_dict(train_sents)  # Create emissions table using training sentences.
         tags = get_tags(test_sents, False)  # Get tags in the tagset of the language.
 
@@ -182,6 +187,7 @@ def evaluate_language(lang):
         calculate_accuracy(preds_local_test, actuals_local_test, tags)
 
 
+# RUNNING THE PROGRAM.
 # Check if the user provided arguments. First argument is the filename.
 if len(sys.argv) == 2:
     lang = sys.argv[1]
@@ -189,4 +195,5 @@ if len(sys.argv) == 2:
     if (lang in ('en', 'es', 'nl', 'pl')):
         evaluate_language(lang)
 else:
-    print("Please run like this: python main.py <'en'|'<es>'|'<nl>'|'<pl>' \nPlease also look at the ReadMe file for further instructions.\n")
+    print(
+        "Please run like this: python main.py <'en'|'<es>'|'<nl>'|'<pl>' \nPlease also look at the ReadMe file for further instructions.\n")
